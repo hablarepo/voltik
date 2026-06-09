@@ -3,7 +3,14 @@
     "allow": [
       "Bash(pip install *)",
       "Bash(python *)",
-      "Bash(timeout 15 streamlit run app.py --server.headless true --server.port 8765)"
+      "Bash(timeout 15 streamlit run app.py --server.headless true --server.port 8765)",
+      "Bash(python3 *)",
+      "Bash(unset MISTRAL_API_KEY)",
+      "Bash(timeout 12 streamlit run app.py --server.headless true --server.port 8766)",
+      "Bash(pip3 install *)",
+      "Bash(pip show *)",
+      "Bash(timeout 15 streamlit run app.py --server.headless true --server.port 8767)",
+      "Bash(timeout 14 streamlit run app.py --server.headless true --server.port 8768)"
     ]
   }
 }

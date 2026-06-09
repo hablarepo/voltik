@@ -9,10 +9,42 @@ def breaker_to_kw(amps: float) -> float:
     return math.sqrt(3) * 400 * amps * 0.95 / 1000
 
 
+def _diversity_factor(flats: int) -> float:
+    """
+    Coincidence/diversity factor per Czech electrical engineering practice (ČSN 33 2130).
+    Not all flats draw peak power simultaneously; factor drops with building size.
+    """
+    if flats <= 4:
+        return 0.70
+    if flats <= 8:
+        return 0.55
+    if flats <= 15:
+        return 0.42
+    if flats <= 25:
+        return 0.32
+    if flats <= 40:
+        return 0.25
+    if flats <= 70:
+        return 0.20
+    if flats <= 120:
+        return 0.17
+    return 0.14
+
+
 def estimate_building_base_load_kw(flats: int) -> dict:
+    """
+    Diversity-factored building load.
+    Assumes 7 kW installed per flat (standard Czech 32A single-phase breaker).
+    Evening peak applies the coincidence factor; daytime base is ~65 % of that.
+    """
+    df = _diversity_factor(flats)
+    # 5 kW per flat reflects the typical Czech residential flat (single-phase 25A breaker)
+    per_flat_kw = 5.0
+    evening_peak_kw = flats * per_flat_kw * df
+    base_kw = evening_peak_kw * 0.65
     return {
-        "base_kw": flats * 0.8,
-        "evening_peak_kw": flats * 1.4,
+        "base_kw": round(base_kw, 1),
+        "evening_peak_kw": round(evening_peak_kw, 1),
     }
 
 
@@ -32,23 +64,22 @@ def calculate_wallbox_capacity(
 
     max_wallboxes_without_balancing = math.floor(available_for_ev_kw / WALLBOX_POWER_KW)
     max_simultaneous_with_balancing = math.floor(available_for_ev_kw / MIN_DYNAMIC_POWER_KW)
+
+    # How many physical wallboxes make sense to install
+    # (dynamic LB means more wallboxes can share capacity than charge simultaneously)
     recommended_installed_wallboxes = min(
         parking_spaces,
         expected_evs,
-        max_simultaneous_with_balancing * 2,
+        max(0, max_simultaneous_with_balancing * 2),
     )
-    recommended_installed_wallboxes = max(0, recommended_installed_wallboxes)
 
     pv_peak_kw = 0.0
     if has_pv and pv_kwp > 0:
-        pv_peak_kw = pv_kwp * 0.75  # daytime only — not counted for evening guaranteed capacity
+        pv_peak_kw = pv_kwp * 0.75  # daytime surplus — not counted for evening guaranteed capacity
 
-    # Warning level
     if available_for_ev_kw < 7:
         warning_level = "red"
     elif max_wallboxes_without_balancing == 0 or max_simultaneous_with_balancing < 2:
-        warning_level = "orange"
-    elif max_wallboxes_without_balancing < 2:
         warning_level = "orange"
     else:
         warning_level = "green"

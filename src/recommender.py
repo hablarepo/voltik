@@ -21,7 +21,7 @@ def recommend_configuration(
     user_input: dict,
     zone_row: pd.Series,
     capacity_result: dict,
-    ml_solution: str,
+    ml_prediction: dict,
 ) -> dict:
     available_for_ev_kw = capacity_result["available_for_ev_kw"]
     reserve_margin = float(zone_row.get("reserve_margin_pct_2025_synthetic", 20))
@@ -29,8 +29,9 @@ def recommend_configuration(
     expected_evs = user_input.get("expected_evs", 0)
     wallboxes = capacity_result["recommended_installed_wallboxes"]
 
-    solution_type = ml_solution
-    load_balancing = "static"
+    # Use ML predictions as the starting point
+    solution_type = ml_prediction.get("solution_type", "none_monitor")
+    load_balancing = ml_prediction.get("load_balancing_type", "static")
     warnings = []
     risk_score = 0
 
@@ -48,10 +49,6 @@ def recommend_configuration(
     if grid_sensitivity > 0.75:
         load_balancing = "dynamic"
         risk_score += 20
-
-    if expected_evs >= 8 and reserve_margin > 20:
-        if solution_type in ("none_monitor", "residential_ac_small"):
-            solution_type = "residential_ac_medium"
 
     if solution_type == "none_monitor":
         load_balancing = "none"
