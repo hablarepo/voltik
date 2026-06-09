@@ -10,7 +10,9 @@
       "Bash(pip3 install *)",
       "Bash(pip show *)",
       "Bash(timeout 15 streamlit run app.py --server.headless true --server.port 8767)",
-      "Bash(timeout 14 streamlit run app.py --server.headless true --server.port 8768)"
+      "Bash(timeout 14 streamlit run app.py --server.headless true --server.port 8768)",
+      "Bash(timeout 12 streamlit run app.py --server.headless true --server.port 8769)",
+      "Bash(timeout 12 streamlit run app.py --server.headless true --server.port 8770)"
     ]
   }
 }

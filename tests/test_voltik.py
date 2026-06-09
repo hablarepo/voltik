@@ -390,17 +390,19 @@ class TestTrainModels:
         result = load_or_train_classifier()
         assert result is not None
 
-    def test_model_tuple_has_two_classifiers(self):
-        """load_or_train_classifier returns a (solution_clf, lb_clf) tuple."""
+    def test_model_tuple_has_four_elements(self):
+        """load_or_train_classifier returns (solution_clf, lb_clf, wallbox_reg, scaler)."""
         from train_models import load_or_train_classifier
         result = load_or_train_classifier()
-        assert len(result) == 2, f"Expected 2-tuple of classifiers, got {type(result)}"
+        assert len(result) == 4, f"Expected 4-tuple (sol_clf, lb_clf, wallbox_reg, scaler), got len={len(result)}"
 
     def test_classifiers_have_predict_method(self):
         from train_models import load_or_train_classifier
-        sol_clf, lb_clf = load_or_train_classifier()
+        sol_clf, lb_clf, wallbox_reg, scaler = load_or_train_classifier()
         assert hasattr(sol_clf, "predict"), "solution classifier should have predict method"
         assert hasattr(lb_clf, "predict"), "lb classifier should have predict method"
+        assert hasattr(wallbox_reg, "predict"), "wallbox regressor should have predict method"
+        assert hasattr(scaler, "transform"), "scaler should have transform method"
 
     def test_predict_solution_returns_dict_with_solution_type(self):
         from train_models import load_or_train_classifier, predict_solution

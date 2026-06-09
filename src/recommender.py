@@ -26,29 +26,58 @@ def recommend_configuration(
     available_for_ev_kw = capacity_result["available_for_ev_kw"]
     reserve_margin = float(zone_row.get("reserve_margin_pct_2025_synthetic", 20))
     grid_sensitivity = float(zone_row.get("grid_sensitivity_index_derived", 0.5))
+    overload_prob = float(zone_row.get("target_overload_probability_2030_synthetic", 0.05))
     expected_evs = user_input.get("expected_evs", 0)
-    wallboxes = capacity_result["recommended_installed_wallboxes"]
 
     # Use ML predictions as the starting point
     solution_type = ml_prediction.get("solution_type", "none_monitor")
     load_balancing = ml_prediction.get("load_balancing_type", "static")
+
+    cap_wallboxes = capacity_result["recommended_installed_wallboxes"]
+
+    # If there is zero demand or zero physical capacity for wallboxes, there is
+    # nothing to install regardless of what the ML says.
+    if cap_wallboxes == 0:
+        solution_type = "none_monitor"
+    nn_wallboxes = ml_prediction.get("wallbox_count_nn", None)
+
+    if solution_type == "none_monitor":
+        wallboxes = 0
+    elif cap_wallboxes <= 0:
+        wallboxes = 0
+    elif nn_wallboxes is not None and nn_wallboxes > 0:
+        # NN provides a zone-risk-adjusted count; cap it by physics but never below 1
+        wallboxes = max(1, min(nn_wallboxes, cap_wallboxes))
+    else:
+        # NN output is 0 or unavailable — fall back to capacity calculator
+        wallboxes = cap_wallboxes
+
     warnings = []
     risk_score = 0
 
-    # Safety overrides
+    # Hard safety floor — physics cannot be overridden by model
     if available_for_ev_kw < 7:
         solution_type = "none_monitor"
         load_balancing = "none"
         warnings.append("Dostupný výkon pro EV je příliš nízký. Doporučujeme pouze monitoring.")
         risk_score += 40
 
+    # Zone-level risk contributions to overall risk score
     if reserve_margin < 10:
         warnings.append("Rezerva distribuční sítě je velmi nízká – pravděpodobně bude nutná úprava přípojky.")
         risk_score += 30
+    elif reserve_margin < 20:
+        risk_score += 15
+
+    if overload_prob > 0.3:
+        warnings.append(f"Pravděpodobnost přetížení sítě do 2030: {overload_prob*100:.0f} % — zvažte fázování projektu.")
+        risk_score += 25
+    elif overload_prob > 0.1:
+        risk_score += 10
 
     if grid_sensitivity > 0.75:
         load_balancing = "dynamic"
-        risk_score += 20
+        risk_score += 15
 
     if solution_type == "none_monitor":
         load_balancing = "none"
